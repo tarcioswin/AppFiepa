@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "82438976710",
+    "project_id": "appfiepa",
+    "storage_bucket": "appfiepa.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:82438976710:android:b84482d0c49e35a11c53c7",
+        "android_client_info": {
+          "package_name": "com.tarcioswin.appfiepa"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "82438976710-sacufg7vp479t55eodrpm4p83be8p790.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.tarcioswin.appfiepa",
+            "certificate_hash": "3afec8e8f14be3f434234a5eac2a9ea776a7d087"
+          }
+        },
+        {
+          "client_id": "82438976710-b1jhsf4hie069s424totcqluq8dmeq3i.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBUKCo-JmiEt3BxWGh3UziLPFU41Ys5wSw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "82438976710-b1jhsf4hie069s424totcqluq8dmeq3i.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

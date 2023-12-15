@@ -1,0 +1,10 @@
+<resources>
+  <string name="app_name">AppFIEPA</string>
+  <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
+  <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
+  
+  <string name="facebook_app_id">622255843273600</string>
+  <string name="fb_login_protocol_scheme">fb622255843273600</string>
+  <string name="facebook_client_token">7af56f2d764140fa75f113ac5c441809</string>
+
+</resources>
