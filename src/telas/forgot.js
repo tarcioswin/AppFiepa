@@ -1,155 +1,191 @@
-import { View, Text, Image, TextInput, Dimensions, StyleSheet, ImageBackground } from 'react-native'
-import React, { useState,useEffect, useLayoutEffect } from 'react'
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useState, useEffect } from 'react';
+import { View, TextInput, TouchableOpacity, Text, StyleSheet, Alert,ImageBackground,Modal, ActivityIndicator } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import COLORS from '../../components/colors';
-import Button from '../../components/Button';
-import backgroundImage from '../../assets/FIEPAImage.jpg'; // Replace with your image path
-
-const Forgot = ({ navigation }) => {
+import { getAuth, sendPasswordResetEmail} from 'firebase/auth';
+import backgroundImage from '../../assets/FIEPAImage.jpg'; 
 
 
-  // Add a state to manage the background color
-  const [backgroundColor, setBackgroundColor] = useState(COLORS.primary);
-  const [boiHeaderImageWidth, setBoiHeaderImageWidth] = useState(30);
-  const [boiContentImageWidth, setBoiContentImageWidth] = useState(100);
+const Reset = ({ navigation }) => {
 
-  useLayoutEffect(() => {
-    const windowWidth = Dimensions.get('window').width;
-    // You can adjust the header image size here based on your preference
-    const headerImageWidth = 200;
-    setBoiHeaderImageWidth(headerImageWidth);
-  }, []);
+  const [email, setEmail] = useState('');
+  const [backgroundColor] = useState(COLORS.white);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: '',
+      headerTitle: 'Recuperação de senha',
       headerTintColor: 'black',
-      headerStyle: { backgroundColor: "white" },
       headerStyle: { backgroundColor: COLORS.primary },
-      headerTitleStyle: { fontWeight: 'bold' }
+      headerTitleStyle: { fontWeight: 'bold' },
+      headerTitleAlign: 'center' // Center the header title
     });
   }, [backgroundColor]);
-    
-
- return (
 
 
+  const handlePasswordReset = () => {
+    setIsModalVisible(true); // Show a loading indicator
+    const auth = getAuth();
+    sendPasswordResetEmail(auth, email)
+      .then(() => {
+        Alert.alert('Sucesso', 'Um link de redefinição de senha foi enviado para o seu email');
+        setIsModalVisible(false); // Hide loading indicator
+        navigation.navigate('Login');
+      })
+      .catch((error) => {
+        // Firebase handles the case where the email is not registered
+        Alert.alert('Erro', error.message);
+        setIsModalVisible(false); // Hide loading indicator
+      });
+  };
+  
 
-  <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
-    <SafeAreaView style={{ flex: 1}}>
+  return (
+    <ImageBackground source={backgroundImage} style={styles.backgroundstyle}>
+    <SafeAreaView style={{ flex: 1 }}>
+
+
       <View style={{ flex: 1, marginHorizontal: 1 }}>
-      
-      
 
-         <View style={{ marginBottom: 1 }}>
-                    <Text style={{
-                        fontSize: 16,
-                        fontWeight: 400,
-                        marginVertical: 1,
-                        fontWeight: 'bold',
-                        paddingLeft: 12,
-                    }}>Email</Text>
-                    <View style={{
-                        width: "95%",
-                        alignSelf: "center", 
-                        height: 48,
-                        borderColor: COLORS.black,
-                        borderWidth: 1,
-                        borderRadius: 8,
-                        alignItems: "center",
-                        justifyContent: "center",
-                        paddingLeft: 22,
-                        backgroundColor:'white'
-                    }}>
-                        <TextInput
-                            placeholder='Entre com seu endereço de email cadastrado'
-                            placeholderTextColor={COLORS.black}
-                            keyboardType='email-address'
-                            style={{
-                                width: "100%",
-                            
-                            }}
-                        />
-                    </View>
-                </View>
+      <Modal
+        transparent={true}
+        animationType="fade"
+        visible={isModalVisible}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <View style={styles.centeredView}>
+          <View style={styles.modalView}>
+            <ActivityIndicator size="large" color='#48D1CC' />
+            <Text>Loading...</Text>
+          </View>
+        </View>
+      </Modal>
 
 
+        <View style={{ marginBottom: 1 }}>
+          <Text style={styles.label}>Email</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder="Entre com seu email"
+              placeholderTextColor={COLORS.black}
+              keyboardType="email-address"
+              style={styles.input}
+              onChangeText={(text) => setEmail(text)}
+              autoCapitalize="none"
+            />
+          </View>
+        </View>
 
+        <TouchableOpacity style={styles.registerButton} onPress={handlePasswordReset} >
+          <Text style={styles.registerButtonText}>Enviar</Text>
+        </TouchableOpacity>
 
-                <Button
-                    title="Enviar"
-                    filled
-                    borderColor='#006400'
-                    style={{
-                        marginTop: 10,
-                        marginBottom: 4,
-                        backgroundColor:'#006400',    
-                        fontWeight: 'bold', 
-                        width: "95%",
-                        alignSelf: "center",                   
-                    }}
-                />
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 30 }}>
+          <View style={{ flex: 1, height: 3, backgroundColor: COLORS.black, marginRight: 20, marginLeft: 20 }} />
+        </View>
+
+        <View style={{ flexDirection: "row", justifyContent: "center", marginVertical: 1, padding: 10 }}>
+          <Text style={styles.infoText}>
+            Um link de acesso será enviado para seu email cadastrado!
+          </Text>
+        </View>
+
+      </View>
 
 
 
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 20 }}>
-                    <View
-                        style={{
-                            flex: 1,
-                            height: 1,
-                            backgroundColor: COLORS.black,
-                            marginHorizontal: 10,
-                        }}
-                    />
 
-                </View>
-                <View style={{
-                    flexDirection: "row",
-                    justifyContent: "center",
-                    marginVertical: 10
-                }}>
-                    <Text style={{ fontSize: 16, color: COLORS.black, fontWeight:'bold' }}>Um link de acesso será enviado para seu email cadastrado!</Text>
-                    
-                </View>
-            </View>
-        </SafeAreaView>
-        </ImageBackground>
-    )
-}
-
-
+    </SafeAreaView>
+    </ImageBackground>
+  );
+};
 
 const styles = StyleSheet.create({
-  backgroundImage: {
+  backgroundstyle: {
     flex: 1,
     width: '100%',
     height: '100%',
-    opacity: 0.8, // Adjust opacity here
+    opacity: 0.8,
+  },
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 5
+  },
+  infoText: {
+    fontSize: 16,
+    color: COLORS.black,
+    textAlign: 'center', // Center text if needed
+    marginTop: 10, // Adjust top margin as needed
+  },
+
+  label: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginVertical: 1,
+    paddingLeft: 12,
+    color: 'black',
 
   },
-    headerTitleContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    boiImage: {
-      borderRadius: 15,
-      alignSelf: 'center', // Center the image horizontally
-      marginVertical: 0, // Add some margin to the image
-    },
-    headerTitle: {
-      fontSize: 16,
-      fontWeight: 'bold',
-      left: 10
-    },
-    titleText: {
-      fontSize: 24,
-      fontWeight: 'bold',
-      marginVertical: 0,
-      alignSelf: 'center', // Center the text horizontally
-    },
-  });
+  inputContainer: {
+    shadowColor: '#000',  // Shadow color
+    shadowOffset: { width: 0, height: 2 },  // Shadow offset
+    shadowOpacity: 0.25,  // Shadow opacity
+    shadowRadius: 3.84,  // Shadow radius
+    elevation: 5,  // Elevation for Android
+    width: '95%',
+    alignSelf: 'center',
+    height: 48,
+    borderColor: COLORS.white,
+    borderWidth: 1,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingLeft: 22,
+    backgroundColor: 'white',
+  },
+  input: {
+    width: '100%',
+  },
 
+  registerButton: {
+    backgroundColor:  '#006400',
+    width: '95%',
+    alignSelf: 'center',
+    marginTop: 20,
+    paddingHorizontal: 10,
+    marginBottom: 4,
+    borderRadius: 8,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',  // Shadow color
+    shadowOffset: { width: 0, height: 2 },  // Shadow offset
+    shadowOpacity: 0.25,  // Shadow opacity
+    shadowRadius: 3.84,  // Shadow radius
+    elevation: 5,  // Elevation for Android
+  },
+  registerButtonText: {
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+});
 
-export default Forgot
-
-
+export default Reset;

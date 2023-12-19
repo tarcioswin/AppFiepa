@@ -1,18 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { View, KeyboardAvoidingView, TextInput, TouchableOpacity, Text, StyleSheet, Animated, Keyboard, Alert, ImageBackground, Image, Dimensions } from 'react-native';
+import { View, KeyboardAvoidingView, TextInput, TouchableOpacity, Text, StyleSheet, Animated, Keyboard, Alert, ImageBackground, Image, Dimensions, Modal, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from "@expo/vector-icons";
 import COLORS from '../../components/colors';
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { getAuth, signInWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, FacebookAuthProvider, signOut } from 'firebase/auth';
 import topo from '../../assets/LogoFipa.png';
 import backgroundImage from '../../assets/FIEPAImage.jpg';
+import { doc, setDoc, getDoc } from "firebase/firestore";
+import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
+import { auth, db } from '../../src/services/firebaseConfig';
 
 const window = Dimensions.get('window');
 
 const Login = () => {
-  const [offset] = useState(new Animated.ValueXY({ x: window.width / 1.2, y: 200 }));
+  const [offset] = useState(new Animated.ValueXY({ x: window.width / 1.1, y: 210 }));
   const [opacity] = useState(new Animated.Value(0));
-  const [logo] = useState(new Animated.ValueXY({ x: window.width / 1.2, y: 200 }));
+  const [logo] = useState(new Animated.ValueXY({ x: window.width / 1.1, y: 210 }));
 
   const [isPasswordShown, setIsPasswordShown] = useState(false);
   const navigation = useNavigation();
@@ -20,6 +24,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [userId, setUserId] = useState(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
 
 
 
@@ -30,8 +35,8 @@ const Login = () => {
     Animated.parallel([
       Animated.spring(offset.y, {
         toValue: 0,
-        speed: 4,
-        bounciness: 20,
+        speed: 400,
+        bounciness: 200,
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
@@ -78,6 +83,7 @@ const Login = () => {
   }
 
   const handleLogin = () => {
+    setIsModalVisible(true);
     setIsLoggingIn(true); // Disable the button as login starts
     const auth = getAuth();
     signInWithEmailAndPassword(auth, email, password)
@@ -87,6 +93,7 @@ const Login = () => {
         setEmail('');
         setPassword('');
         setIsLoggingIn(false)
+        setIsModalVisible(false);
         navigation.navigate("acesso");
       })
       .catch((error) => {
@@ -98,35 +105,141 @@ const Login = () => {
         } else if (errorCode === "auth/wrong-password") {
           customErrorMessage = "Incorrect password";
         }
-
         Alert.alert("Login Error", customErrorMessage, [{ text: "OK", onPress: () => setIsLoggingIn(false) }]);
-
+        setIsModalVisible(false);
       });
   };
+
+
+  const handleGoogleSignIn = async () => {
+    setIsModalVisible(true);
+    try {
+      await GoogleSignin.hasPlayServices();
+      await GoogleSignin.signOut();
+      const userInfo = await GoogleSignin.signIn();
+      setIsModalVisible(false);
+      const googleCredential = GoogleAuthProvider.credential(userInfo.idToken);
+      setIsModalVisible(true);
+      const userCredential = await signInWithCredential(auth, googleCredential);
+
+      // User is signed in, now save their data to Firestore
+      const user = userCredential.user;
+      await setDoc(doc(db, "usuario", user.uid), {
+        name: user.displayName,
+        email: user.email,
+      });
+
+      // Navigate to the desired screen after successful login
+      setIsModalVisible(false);
+      navigation.navigate('acesso');
+     
+
+    } catch (error) {
+      if (error.code === statusCodes.SIGN_IN_CANCELLED) {
+        Alert.alert('Login Cancelled', 'Google sign-in was cancelled.');
+      } else if (error.code === statusCodes.IN_PROGRESS) {
+        Alert.alert('Login In Progress', 'Google sign-in is already in progress.');
+      } else if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+        Alert.alert('Play Services Error', 'Google Play services are not available.');
+      } else {
+        Alert.alert('Login Error', 'An error occurred during Google sign-in.');
+        console.error(error);
+      }
+      setIsModalVisible(false);
+    }
+  };
+
+
+
+  const handleFacebookSignIn = async () => {
+    setIsModalVisible(true);
+    try {
+      LoginManager.logOut();
+      const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
+  
+      if (result.isCancelled) {
+        setIsModalVisible(false);
+        console.log('User cancelled the Facebook login process');
+        Alert.alert('Login Cancelled', 'You cancelled the Facebook login process.');
+        return;
+      }
+  
+      const data = await AccessToken.getCurrentAccessToken();
+      if (!data) {
+        throw new Error('Something went wrong obtaining access token');
+      }
+      setIsModalVisible(false);
+      const facebookCredential = FacebookAuthProvider.credential(data.accessToken);
+      setIsModalVisible(true);
+      try {
+        const userCredential = await signInWithCredential(auth, facebookCredential);
+        const user = userCredential.user;
+  
+        await setDoc(doc(db, "usuario", user.uid), {
+          name: user.displayName,
+          email: user.email,
+        });
+  
+        setIsModalVisible(false);
+        navigation.navigate('acesso');
+
+      } catch (innerError) {
+        if (innerError.code === 'auth/account-exists-with-different-credential' || innerError.code === 'auth/email-already-in-use')
+        {
+          //Alert.alert('Erro de Login', 'Email já cadastrado');
+          setIsModalVisible(false);
+          navigation.navigate('acesso');
+        } else {
+          throw innerError;
+        }
+      }
+    } catch (error) {
+      console.log(error);
+      Alert.alert('Login Failed', error.message);
+    }
+    setIsModalVisible(false);
+  };
+
+
 
   const imageStyle = {
     width: logo.x,  // Assuming logo.x and logo.y are your animated values
     height: logo.y,
-    borderRadius: 50,  // Adjust for rounded corners
+    borderRadius: 20,  // Adjust for rounded corners
     borderWidth: 2,   // Border width
     borderColor: '#006400',  // Border color
+  };
+
+  const imageViewStyle = {
     shadowColor: '#000',  // Shadow color
     shadowOffset: { width: 0, height: 2 },  // Shadow offset
     shadowOpacity: 0.25,  // Shadow opacity
     shadowRadius: 3.84,  // Shadow radius
-    //elevation: 5,  // Elevation for Android
+    elevation: 25,  // Elevation for Android
+    borderRadius: 50, // Match the Image's borderRadius
   };
 
 
   return (
+
+
+
+
+
     <ImageBackground source={backgroundImage} style={styles.backgroundstyle}>
       <KeyboardAvoidingView style={styles.background}>
+
         <View style={styles.containerLogo}>
-          <Animated.Image
-            style={imageStyle}
-            source={topo}
-          />
+
+          <View style={imageViewStyle}>
+            <Animated.Image
+              style={imageStyle}
+              source={topo}
+            />
+          </View>
+
         </View>
+
         <Animated.View
           style={[
             styles.container,
@@ -138,6 +251,23 @@ const Login = () => {
             },
           ]}
         >
+
+
+
+          <Modal
+            transparent={true}
+            animationType="fade"
+            visible={isModalVisible}
+            onRequestClose={() => setIsModalVisible(false)}
+          >
+            <View style={styles.centeredView}>
+              <View style={styles.modalView}>
+                <ActivityIndicator size="large" color='#006400' />
+                <Text>Loading...</Text>
+              </View>
+            </View>
+          </Modal>
+
           <TextInput
             style={styles.input}
             placeholder="Email"
@@ -184,26 +314,28 @@ const Login = () => {
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 30 }}>
             <View style={{ flex: 1, height: 3, backgroundColor: COLORS.black }} />
-            <Text style={{ paddingHorizontal: 10, fontSize: 20, color: COLORS.black, fontWeight:'bold' }}>ou</Text>
+            <Text style={{ paddingHorizontal: 10, fontSize: 20, color: COLORS.black, fontWeight: 'bold' }}>ou</Text>
             <View style={{ flex: 1, height: 3, backgroundColor: COLORS.black }} />
           </View>
 
 
           <View style={styles.socialMediaButtonsContainer}>
-            <TouchableOpacity style={styles.socialMediaButton}>
+            <TouchableOpacity style={styles.socialMediaButton} onPress={handleFacebookSignIn}>
               <Image source={require('../../assets/facebook.png')} style={{
                 height: 36, width: 36, marginRight: 8, borderColor: '#ddd',
                 shadowColor: '#000'
               }} resizeMode="contain" />
               <Text style={{ fontWeight: 'bold', fontSize: 16, }}>Facebook</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.socialMediaButton}>
+
+            <TouchableOpacity style={styles.socialMediaButton} onPress={handleGoogleSignIn}>
               <Image source={require('../../assets/google.png')} style={{
                 height: 36, width: 36, marginRight: 8, borderColor: '#ddd',
                 shadowColor: '#000'
               }} resizeMode="contain" />
               <Text style={{ fontWeight: 'bold', fontSize: 16, }}>Google</Text>
             </TouchableOpacity>
+
           </View>
         </Animated.View>
       </KeyboardAvoidingView>
@@ -212,10 +344,34 @@ const Login = () => {
 };
 
 const styles = StyleSheet.create({
+  centeredView: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 22
+  },
+  modalView: {
+    margin: 20,
+    backgroundColor: "white",
+    borderRadius: 20,
+    padding: 35,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 10
+  },
   socialMediaButtonsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     marginVertical: 20,
+    borderColor: '#006400',  // Border color
+    shadowColor: '#000',  // Shadow color
+    shadowOffset: { width: 0, height: 2 },  // Shadow offset
+    shadowOpacity: 0.25,  // Shadow opacity
+    shadowRadius: 3.84,  // Shadow radius
+    elevation: 15,  // Elevation for Android
   },
   socialMediaButton: {
     flex: 1,
@@ -229,7 +385,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },  // Shadow offset
     shadowOpacity: 0.25,  // Shadow opacity
     shadowRadius: 3.84,  // Shadow radius
-    //elevation: 5,  // Elevation for Android
+    elevation: 15,  // Elevation for Android
     marginLeft: 10,
     borderRadius: 10,
     backgroundColor: 'white',
@@ -264,7 +420,12 @@ const styles = StyleSheet.create({
     fontSize: 17,
     borderRadius: 7,
     padding: 10,
-
+    borderColor: '#006400',  // Border color
+    shadowColor: '#000',  // Shadow color
+    shadowOffset: { width: 0, height: 2 },  // Shadow offset
+    shadowOpacity: 0.25,  // Shadow opacity
+    shadowRadius: 3.84,  // Shadow radius
+    elevation: 15,  // Elevation for Android
   },
   btnSubmit: {
     borderColor: '#006400',  // Border color
@@ -272,7 +433,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },  // Shadow offset
     shadowOpacity: 0.25,  // Shadow opacity
     shadowRadius: 3.84,  // Shadow radius
-    //elevation: 5,  // Elevation for Android
+    elevation: 15,  // Elevation for Android
     backgroundColor: '#006400',
     width: '95%',
     height: 48,

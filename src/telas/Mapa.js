@@ -21,7 +21,7 @@ const Mapa = () => {
         <ImageViewer 
           imageUrls={images}
           backgroundColor={COLORS.white}
-          style={{ width: windowWidth, height: windowHeight, marginTop: -10}}
+          style={{ width: windowWidth, height: windowHeight, marginTop: -170}}
         />
       </View>
     </SafeAreaView>
@@ -29,3 +29,5 @@ const Mapa = () => {
 };
 
 export default Mapa;
+
+

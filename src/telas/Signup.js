@@ -4,15 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Checkbox } from 'expo-checkbox';
 import COLORS from '../../components/colors';
-import { getAuth, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, FacebookAuthProvider} from 'firebase/auth';
-import { doc, setDoc } from "firebase/firestore";
+import { getAuth, createUserWithEmailAndPassword, GoogleAuthProvider, signInWithCredential, FacebookAuthProvider, signOut } from 'firebase/auth';
+import { doc, setDoc,getDoc } from "firebase/firestore";
 import backgroundImage from '../../assets/FIEPAImage.jpg'; 
 import {auth, db } from '../../src/services/firebaseConfig'; 
 import {GoogleSignin,statusCodes} from '@react-native-google-signin/google-signin';
 import { LoginManager, AccessToken } from 'react-native-fbsdk-next';
-
-
-
 
 
 
@@ -35,10 +32,11 @@ const Registrar = ({ navigation }) => {
 
   useEffect(() => {
     navigation.setOptions({
-      headerTitle: '',
+      headerTitle: 'Criar conta',
       headerTintColor: 'black',
       headerStyle: { backgroundColor: COLORS.primary },
-      headerTitleStyle: { fontWeight: 'bold' }
+      headerTitleStyle: { fontWeight: 'bold' },
+      headerTitleAlign: 'center' // Center the header title
     });
   }, [backgroundColor]);
 
@@ -94,22 +92,26 @@ const Registrar = ({ navigation }) => {
 
 
   const handleGoogleSignIn = async () => {
+    setIsModalVisible(true);
     try {
       await GoogleSignin.hasPlayServices();
       await GoogleSignin.signOut();
       const userInfo = await GoogleSignin.signIn();
+      setIsModalVisible(false);
       const googleCredential = GoogleAuthProvider.credential(userInfo.idToken);
+      setIsModalVisible(true);
       const userCredential = await signInWithCredential(auth, googleCredential);
 
       // User is signed in, now save their data to Firestore
       const user = userCredential.user;
       await setDoc(doc(db,"usuario", user.uid), {
-        name: user.displayName,
+        nome: user.displayName,
         email: user.email,
       });
 
       // Navigate to the desired screen after successful login
       navigation.navigate('acesso');
+      setIsModalVisible(false);
 
     } catch (error) {
       if (error.code === statusCodes.SIGN_IN_CANCELLED) {
@@ -122,56 +124,69 @@ const Registrar = ({ navigation }) => {
         Alert.alert('Login Error', 'An error occurred during Google sign-in.');
         console.error(error);
       }
+      setIsModalVisible(false);
     }
   };
+
+
 
 
 
   const handleFacebookSignIn = async () => {
+    setIsModalVisible(true);
     try {
-      // Attempt login with permissions
       const result = await LoginManager.logInWithPermissions(['public_profile', 'email']);
-
-   
+  
       if (result.isCancelled) {
+        setIsModalVisible(false);
         console.log('User cancelled the Facebook login process');
         Alert.alert('Login Cancelled', 'You cancelled the Facebook login process.');
-        return; // Early return if the user cancelled the login
+        return;
       }
-
-      // Get the access token
+  
       const data = await AccessToken.getCurrentAccessToken();
-
       if (!data) {
         throw new Error('Something went wrong obtaining access token');
       }
-
-      // Create a Firebase credential with the AccessToken
+      setIsModalVisible(false);
       const facebookCredential = FacebookAuthProvider.credential(data.accessToken);
+      setIsModalVisible(true);
+      try {
+        const userCredential = await signInWithCredential(auth, facebookCredential);
+        const user = userCredential.user;
+  
+        await setDoc(doc(db, "usuario", user.uid), {
+          name: user.displayName,
+          email: user.email,
+        });
+  
+        setIsModalVisible(false);
+        navigation.navigate('acesso');
 
-      // Sign in with credential from the Facebook user
-      const userCredential = await signInWithCredential(auth, facebookCredential);
-      const user = userCredential.user;
-
-      // Save user data to Firestore
-      await setDoc(doc(db, "usuario", user.uid), {
-        name: user.displayName,
-        email: user.email,
-      });
-
-      // Navigate to the desired screen after successful login
-      navigation.navigate('acesso');
-
+      } catch (innerError) {
+        if (innerError.code === 'auth/account-exists-with-different-credential' || innerError.code === 'auth/email-already-in-use')
+        {
+          //Alert.alert('Erro de Login', 'Email já cadastrado');
+          setIsModalVisible(false);
+          navigation.navigate('acesso');
+        } else {
+          throw innerError;
+        }
+      }
     } catch (error) {
       console.log(error);
       Alert.alert('Login Failed', error.message);
     }
+    setIsModalVisible(false);
   };
 
 
 
+
   return (
-    <ImageBackground source={backgroundImage} style={styles.backgroundImage}>
+
+    <ImageBackground source={backgroundImage} style={styles.backgroundstyle}>
+
     <SafeAreaView style={{ flex: 1 }}>
       
       <Modal
@@ -182,144 +197,139 @@ const Registrar = ({ navigation }) => {
       >
         <View style={styles.centeredView}>
           <View style={styles.modalView}>
-            <ActivityIndicator size="large" color="#0000ff" />
+            <ActivityIndicator size="large" color='#006400' />
             <Text>Loading...</Text>
           </View>
         </View>
       </Modal>
 
 
-
-
-
         <View style={{ flex: 1, marginHorizontal: 1 }}>
-          <View style={{ marginTop: 1 }}>
-            <Text style={styles.label}>Nome</Text>
-            <View style={{
-              width: "95%",
-              alignSelf: "center",
-              height: 48,
-              borderColor: COLORS.black,
-              borderWidth: 1,
-              borderRadius: 8,
-              alignItems: "center",
-              justifyContent: "center",
-              paddingLeft: 22,
-              backgroundColor: 'white',
-            }}>
-              <TextInput
-                placeholder='Entre com seu nome'
-                placeholderTextColor={COLORS.black}
-                keyboardType='default'
-                style={{ width: "100%" }}
-                onChangeText={(text) => setName(text)}
-              />
-            </View>
+
+        <View style={{ marginTop: 1 }}>
+          <Text style={styles.label}>Nome</Text>
+
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder='Entre com seu nome'
+              autoCapitalize="none"
+              placeholderTextColor={COLORS.black}
+              keyboardType='default'
+              style={{ width: "100%" }}
+              onChangeText={(text) => setName(text)}
+            />
           </View>
+        </View>
 
-          <View style={{ marginBottom: 1 }}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                placeholder="Entre com seu email"
-                placeholderTextColor={COLORS.black}
-                keyboardType="email-address"
-                style={styles.input}
-                onChangeText={(text) => setEmail(text)}
-              />
-            </View>
+        <View style={{ marginBottom: 1 }}>
+          <Text style={styles.label}>Email</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder="Entre com seu email"
+              placeholderTextColor={COLORS.black}
+              keyboardType="email-address"
+              style={styles.input}
+              onChangeText={(text) => setEmail(text)}
+              autoCapitalize="none"
+            />
           </View>
-          <View style={{ marginBottom: 1 }}>
-            <Text style={styles.label}>Número de telefone</Text>
+        </View>
 
 
-
-
-            <View style={{
-              width: "95%",
-              alignSelf: "center",
-              height: 48,
-              borderColor: COLORS.black,
-              borderWidth: 1,
-              borderRadius: 8,
-              alignItems: "center",
-              flexDirection: "row",
-              justifyContent: "space-between",
-              paddingLeft: 20,
-              backgroundColor: 'white',
-            }}>
-              <TextInput
-                placeholder='DDD'
-                placeholderTextColor={COLORS.black}
-                keyboardType='numeric'
-                style={{
-                  width: "12%",
-                  borderRightWidth: 1,
-                  borderLeftColor: COLORS.grey,
-                  height: "100%"
-                }}
-                onChangeText={(text) => setDdd(text)}
-              />
-              <TextInput
-                placeholder='Entre com seu número'
-                placeholderTextColor={COLORS.black}
-                keyboardType='numeric'
-                style={{ width: "80%" }}
-                onChangeText={(text) => setTelefone(text)}
-              />
-            </View>
-          </View>
-
-
-
-          <View style={{ marginBottom: 12 }}>
-            <Text style={styles.label}>Password</Text>
-            <View style={styles.inputContainer}>
-              <TextInput
-                placeholder="Entre com seu password"
-                placeholderTextColor={COLORS.black}
-                secureTextEntry={!isPasswordShown}
-                style={styles.input}
-                onChangeText={(text) => setPassword(text)}
-              />
-              <TouchableOpacity
-                onPress={() => setIsPasswordShown(!isPasswordShown)}
-                style={styles.passwordVisibilityIcon}
-              >
-                {isPasswordShown ? (
-                  <Ionicons name="eye" size={24} color={COLORS.black} />
-                ) : (
-                  <Ionicons name="eye-off" size={24} color={COLORS.black} />
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-
-
-
+        <View style={{ marginBottom: 1 }}>
+          <Text style={styles.label}>Número de telefone</Text>
           <View style={{
-            flexDirection: 'row',
-            marginVertical: 6,
             width: "95%",
             alignSelf: "center",
+            height: 48,
+            borderColor: COLORS.black,
+            borderWidth: 1,
+            borderRadius: 8,
+            alignItems: "center",
+            flexDirection: "row",
+            justifyContent: "space-between",
+            paddingLeft: 20,
+            backgroundColor: 'white',
+            borderColor: COLORS.white,
+            shadowColor: '#000',  // Shadow color
+            shadowOffset: { width: 0, height: 2 },  // Shadow offset
+            shadowOpacity: 0.25,  // Shadow opacity
+            shadowRadius: 3.84,  // Shadow radius
+            elevation: 5,  // Elevation for Android
           }}>
-            <Checkbox
-              style={{ marginRight: 8, backgroundColor: 'white' }}
-              value={isChecked}
-              onValueChange={setIsChecked}
-              color={isChecked ? COLORS.primary : undefined}
+            <TextInput
+              placeholder='DDD'
+              placeholderTextColor={COLORS.black}
+              keyboardType='numeric'
+              style={{
+                width: "12%",
+                borderRightWidth: 1,
+                height: "100%"
+              }}
+              onChangeText={(text) => setDdd(text)}
             />
-            <Text style={{
-              fontWeight: 'bold', color: 'black'
-            }}>Eu aceito os termos e condições propostas</Text>
+            <TextInput
+              placeholder='Entre com seu número'
+              placeholderTextColor={COLORS.black}
+              keyboardType='numeric'
+              style={{ width: "80%" }}
+              onChangeText={(text) => setTelefone(text)}
+            />
           </View>
+        </View>
+
+
+
+        <View style={{ marginBottom: 12 }}>
+          <Text style={styles.label}>Password</Text>
+          <View style={styles.inputContainer}>
+            <TextInput
+              placeholder="Entre com seu password"
+              placeholderTextColor={COLORS.black}
+              secureTextEntry={!isPasswordShown}
+              autoCapitalize="none"
+              style={styles.input}
+              onChangeText={(text) => setPassword(text)}
+            />
+            <TouchableOpacity
+              onPress={() => setIsPasswordShown(!isPasswordShown)}
+              style={styles.passwordVisibilityIcon}
+            >
+              {isPasswordShown ? (
+                <Ionicons name="eye" size={24} color={COLORS.black} />
+              ) : (
+                <Ionicons name="eye-off" size={24} color={COLORS.black} />
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+
+
+
+        <View style={{
+          flexDirection: 'row',
+          marginVertical: 6,
+          width: "95%",
+          alignSelf: "center",
+        }}>
+          <Checkbox
+            style={{ marginRight: 8, backgroundColor: 'white' }}
+            value={isChecked}
+            onValueChange={setIsChecked}
+            color={isChecked ? COLORS.primary : undefined}
+          />
+          <Text style={{
+            fontWeight: 'bold', color: 'black'
+          }}>Eu aceito os termos e condições propostas</Text>
+        </View>
 
 
 
 
-          <TouchableOpacity style={styles.registerButton} disabled={isLoggingIn} onPress={handleRegister} >
-            <Text style={styles.registerButtonText}>Registrar</Text>
-          </TouchableOpacity>
+        <TouchableOpacity style={styles.registerButton} disabled={isLoggingIn} onPress={handleRegister} >
+          <Text style={styles.registerButtonText}>Registrar</Text>
+        </TouchableOpacity>
+
 
           <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 30 }}>
             <View style={{ flex: 1, height: 3, backgroundColor: COLORS.black, marginLeft: 20 }} />
@@ -357,9 +367,13 @@ const Registrar = ({ navigation }) => {
               <Text style={styles.loginLinkText}>Login</Text>
             </Pressable>
           </View>
+          
         </View>
       </SafeAreaView>
+
     </ImageBackground>
+
+
   );
 };
 
@@ -377,20 +391,16 @@ const styles = StyleSheet.create({
     padding: 35,
     alignItems: "center",
     shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2
-    },
+    shadowOffset: {width: 0,height: 2},
     shadowOpacity: 0.25,
     shadowRadius: 4,
-    elevation: 5
+    elevation: 10
   },
-  backgroundImage: {
+  backgroundstyle: {
     flex: 1,
     width: '100%',
     height: '100%',
-    opacity: 0.8, // Adjust opacity here
-
+    opacity: 0.8,
   },
   label: {
     fontSize: 16,
@@ -420,6 +430,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingLeft: 22,
     backgroundColor: 'white',
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 15,
   },
   input: {
     width: '100%',
@@ -438,6 +453,11 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 15
   },
   registerButtonText: {
     color: COLORS.white,
@@ -449,6 +469,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginVertical: 30,
     paddingRight: 10,
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 15,
   },
   socialMediaButton: {
     flex: 1,
@@ -461,12 +486,23 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     borderRadius: 10,
     backgroundColor: 'white',
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 15,
+    borderColor: '#006400',  // Border color
   },
   checkboxContainer: {
     flexDirection: 'row',
     marginVertical: 6,
     width: '95%',
     alignSelf: 'center',
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 15,
   },
   checkbox: {
     marginRight: 8,
@@ -476,6 +512,11 @@ const styles = StyleSheet.create({
     borderColor: COLORS.black,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 15,
   },
   checkboxLabel: {
     fontWeight: 'bold',
@@ -484,6 +525,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     marginVertical: 22,
+    shadowColor: "#000",
+    shadowOffset: {width: 0,height: 2},
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    elevation: 15,
   },
   loginText: {
     justifyContent: 'center',

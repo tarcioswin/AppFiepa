@@ -45,3 +45,7 @@ Xo8WBi6jzSxKDVR4drqm84yr9iU=
 3A:FE:C8:E8:F1:4B:E3:F4:34:23:4A:5E:AC:2A:9E:A7:76:A7:D0:87
 
  echo -n "3AFEC8E8F14BE3F434234A5EAC2A9EA776A7D087" | xxd -r -p | openssl base64
+
+
+
+  npx expo start --dev-client 
